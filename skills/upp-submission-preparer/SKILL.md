@@ -32,6 +32,10 @@ After every completed homework, create or update `Инструкции_по_сд
 
 When documenting repository artifacts, use repository-relative Markdown links. Absolute local paths such as `/Users/...` are valid only for a local desktop response, not for links that should open on GitHub.
 
+## Mandatory final gate
+
+At the end of every homework workflow, explicitly ask the user: “Вы согласовали содержание с официальной Google-книгой команды? Пришлите PDF, экспортированный из Google Sheets, для финальной проверки”. Treat the edited Excel workbook and its PDF as a draft until the user confirms the Google Sheets content. After receiving the Google Sheets PDF, compare it with the approved answer blocks and check readability before calling the package ready for F01. If the user declines or does not provide the PDF, state that the final export was not verified.
+
 ## Safety boundary
 
 Do not submit a Google Form, change Drive permissions, or publish personal data without an explicit user request. Report access failures and preserve the prepared PDF locally.
