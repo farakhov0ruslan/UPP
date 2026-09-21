@@ -30,6 +30,8 @@ After every completed homework, create or update `Инструкции_по_сд
 
 `F01` submits the result. `F02` is for cross-review and must not be used as the result-submission form. Starting with S02, a correction of an earlier seminar uses the previous seminar selector, a link to the corrected version, and a short explanation. Use `v02` or the next version for a resubmission; never replace the earlier file.
 
+When documenting repository artifacts, use repository-relative Markdown links. Absolute local paths such as `/Users/...` are valid only for a local desktop response, not for links that should open on GitHub.
+
 ## Safety boundary
 
 Do not submit a Google Form, change Drive permissions, or publish personal data without an explicit user request. Report access failures and preserve the prepared PDF locally.
