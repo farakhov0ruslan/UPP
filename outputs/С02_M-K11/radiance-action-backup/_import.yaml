@@ -1,0 +1,91 @@
+{{- $app := .Values.App | default dict -}}
+{{- $request := .Values.Action | default dict -}}
+{{- $requestCluster := $request.Cluster | default dict -}}
+{{- $requestTrinity := $requestCluster.trinityApp | default dict -}}
+{{- $requestAction := $requestTrinity.action | default dict -}}
+{{- $requestActionConfigs := $requestAction.configs | default dict -}}
+{{- $cluster := $app.Cluster | default dict -}}
+{{- $trinity := $cluster.trinityApp | default dict -}}
+{{- $action := $trinity.action | default dict -}}
+{{- $actionConfigs := $action.configs | default dict -}}
+{{- $configs := $trinity.configs | default dict -}}
+{{- $common := $configs.common | default dict -}}
+{{- $images := $common.images | default dict -}}
+{{- $utility := (get $images "radianceBackupRestore") | default (dict) -}}
+{{- $podGroups := $cluster.podGroups | default dict -}}
+{{- $radiancePodGroup := (get $podGroups "radiance") | default (dict) -}}
+{{- $resource := $radiancePodGroup.resource | default dict -}}
+{{- $maintenance := $common.maintenance | default dict -}}
+{{- $backup := $maintenance.backup | default dict -}}
+{{- $full := $backup.full | default dict -}}
+{{- $settings := $configs.settings | default dict -}}
+{{- $dp := $app.DP | default dict -}}
+{{- $namespaces := $dp.namespaces | default dict -}}
+{{- $namespace := $namespaces.radianceCluster | default dict -}}
+Cluster:
+  isXaas: false
+  trinityApp:
+    name: "radiance-action-backup"
+    version: "0.0.1"
+    action:
+      type: "backup"
+      configs:
+        id: {{ $requestActionConfigs.id | default ($actionConfigs.id | default "") | quote }}
+        label: {{ $requestActionConfigs.label | default ($requestActionConfigs.name | default ($actionConfigs.label | default ($actionConfigs.name | default ""))) | quote }}
+        method: {{ $requestActionConfigs.method | default ($actionConfigs.method | default "full") | quote }}
+    configs:
+      common:
+        images:
+          radianceBackupRestore:
+            repository: {{ $utility.repository | default "" | quote }}
+            tag: {{ $utility.tag | default "" | quote }}
+            digest: {{ $utility.digest | default "sha256:7dc51b6f44b9bb46b29737795d7c31f3c55f7b729a362a0dd3c0f13e767930b3" | quote }}
+            pullPolicy: {{ $utility.pullPolicy | default "IfNotPresent" | quote }}
+        maintenance:
+          backup:
+            s3_bucket_name: {{ $backup.s3_bucket_name | default "radiance-backup" | quote }}
+            s3_bucket_folder: {{ $backup.s3_bucket_folder | default "" | quote }}
+            s3_region: {{ $backup.s3_region | default "ru-1" | quote }}
+            full:
+              keepCount: {{ $full.keepCount | default 1 }}
+              creation_timeout: {{ $full.creation_timeout | default 17900 }}
+      settings:
+        tlsEnabled:
+          value: {{ dig "tlsEnabled" "value" false $settings }}
+      jobResources:
+        requests:
+          cpu: {{ $resource.CpuRequest | default "100m" | quote }}
+          memory: {{ $resource.MemoryRequest | default "128Mi" | quote }}
+        limits:
+          cpu: {{ $resource.CpuLimit | default "200m" | quote }}
+          memory: {{ $resource.MemoryLimit | default "256Mi" | quote }}
+
+Infra:
+  isStandalone: {{ $dp.isStandalone | default false }}
+  registry: {{ $dp.registry | default "registry.infra.mail.ru:5010" | quote }}
+  s3endpointUrl: {{ $dp.s3endpointUrl | default "https://hb.corpcloud.devmail.ru" | quote }}
+  namespaces:
+    radianceCluster:
+      name: {{ $namespace.name | default "radiance-random" | quote }}
+  {{- $nodeGroups := (get $dp "nodeGroups") | default dict -}}
+  {{- $nodeGroup := (get $nodeGroups "radiance") | default dict -}}
+  {{- $nodeGroupLabel := (get $nodeGroup "label") | default dict -}}
+  {{- if $nodeGroupLabel }}
+  nodeGroups:
+    radiance:
+      label:
+        key: {{ $nodeGroupLabel.key | default "" | quote }}
+        value: {{ $nodeGroupLabel.value | default "" | quote }}
+  {{- end }}
+
+{{- if and .Values.Action .Values.Action.DP .Values.Action.DP.component }}
+labelKey: {{ .Values.Action.DP.component.label.key | quote }}
+labelValue: {{ .Values.Action.DP.component.label.value | quote }}
+{{- end }}
+{{- if and .Values.App .Values.App.Cluster .Values.App.Cluster.components .Values.App.Cluster.components.backup .Values.App.DP .Values.App.DP.components .Values.App.DP.components.backup }}
+component:
+  label:
+    key: {{ .Values.App.DP.components.backup.label.key | quote }}
+    value: {{ .Values.App.DP.components.backup.label.value | quote }}
+serviceAccountName: {{ .Values.App.Cluster.components.backup.serviceAccountName | default "radiance-backup" | quote }}
+{{- end }}

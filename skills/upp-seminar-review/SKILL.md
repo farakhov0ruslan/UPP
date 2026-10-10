@@ -7,6 +7,8 @@ description: Review a UPP/UniFlow team workbook against the active seminar requi
 
 Use when checking whether a seminar answer is complete, defensible, and ready to export.
 
+For an assigned review of another team's submitted PDF and copy-ready F02 fields, use [upp-peer-review](../upp-peer-review/SKILL.md).
+
 ## Review procedure
 
 1. Determine the active `СXX` from the user's request and the team workbook. Prove that the matching lecture and seminar/card files exist and read them before judging the sheet.

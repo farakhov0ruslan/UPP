@@ -1,0 +1,45 @@
+Cluster:
+  isXaas: false
+  jobResources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "200m"
+      memory: "256Mi"
+  trinityApp:
+    name: "radiance-action-backup"
+    version: "0.0.1"
+    action:
+      type: "backup"
+      configs:
+        id: ""
+        label: ""
+        method: "full"
+    configs:
+      common:
+        images:
+          radianceBackupRestore:
+            repository: "stage-registry.infra.devmail.ru/infra/paas/data-platform/data-images/radiance-backup-restore-0.0.1-redos80c"
+            tag: "v0.0.4"
+            digest: "sha256:7dc51b6f44b9bb46b29737795d7c31f3c55f7b729a362a0dd3c0f13e767930b3"
+            pullPolicy: "IfNotPresent"
+        maintenance:
+          backup:
+            s3_bucket_name: "radiance-backup"
+            s3_bucket_folder: ""
+            s3_region: "ru-1"
+            full:
+              keepCount: 1
+              creation_timeout: 17900
+      settings:
+        tlsEnabled:
+          value: false
+
+Infra:
+  isStandalone: false
+  registry: "registry.infra.mail.ru:5010"
+  s3endpointUrl: "https://hb.corpcloud.devmail.ru"
+  namespaces:
+    radianceCluster:
+      name: "radiance-random"

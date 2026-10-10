@@ -1,0 +1,65 @@
+suite: radiance manual backup action
+
+templates:
+  - backup-create-job.yaml
+
+tests:
+  - it: manual action selects the requested full backup and the utility image
+    set:
+      Cluster.trinityApp.action.configs.id: backup-42
+      Cluster.trinityApp.action.configs.label: before-delete
+      Cluster.trinityApp.action.configs.method: full
+      serviceAccountName: radiance-backup
+      component.label.key: data.vkcs.cloud/component
+      component.label.value: radiance-backup-random
+    asserts:
+      - equal:
+          path: metadata.annotations.backupID
+          value: backup-42
+        template: backup-create-job.yaml
+      - equal:
+          path: metadata.annotations.backupLabel
+          value: before-delete
+        template: backup-create-job.yaml
+      - equal:
+          path: spec.template.spec.containers[0].image
+          value: "stage-registry.infra.devmail.ru/infra/paas/data-platform/data-images/radiance-backup-restore-0.0.1-redos80c@sha256:7dc51b6f44b9bb46b29737795d7c31f3c55f7b729a362a0dd3c0f13e767930b3"
+        template: backup-create-job.yaml
+      - equal:
+          path: spec.template.spec.containers[0].args
+          value:
+            - backup
+        template: backup-create-job.yaml
+      - notExists:
+          path: spec.template.spec.containers[0].command
+        template: backup-create-job.yaml
+      - equal:
+          path: spec.template.spec.serviceAccountName
+          value: radiance-backup
+        template: backup-create-job.yaml
+      - equal:
+          path: spec.template.metadata.labels["data.vkcs.cloud/component"]
+          value: radiance-backup-random
+        template: backup-create-job.yaml
+
+  - it: manual backup uses HTTP for a non-TLS Radiance service
+    set:
+      Cluster.trinityApp.configs.settings.tlsEnabled.value: false
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: RADIANCE_URL
+            value: "http://radiance-service:8080/state"
+        template: backup-create-job.yaml
+
+  - it: manual backup uses HTTPS for a TLS-enabled Radiance service
+    set:
+      Cluster.trinityApp.configs.settings.tlsEnabled.value: true
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: RADIANCE_URL
+            value: "https://radiance-service:8080/state"
+        template: backup-create-job.yaml

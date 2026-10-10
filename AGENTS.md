@@ -23,7 +23,7 @@
 | `УПП_2026_Студенческая_заготовка_ProjectLibre_UniFlow.pod` | Модель ProjectLibre для расписания и ресурсов UniFlow. |
 | `AGENTS.md` | Этот guide и карта репозитория. |
 | `CLAUDE.md` | Символьная ссылка на `AGENTS.md`; редактируйте только целевой файл. |
-| `skills/` | `upp-homework-solver`, `upp-course-navigator`, `upp-seminar-review`, `upp-submission-preparer` — полный цикл ДЗ, навигация, проверка и сдача. |
+| `skills/` | `upp-homework-solver`, `upp-course-navigator`, `upp-seminar-review`, `upp-peer-review`, `upp-submission-preparer` — полный цикл ДЗ, навигация, проверка, командное ревью через F02 и сдача. |
 | `Инструкции_по_сдаче/` | Инструкция и шаблон для передачи каждого готового ДЗ отправляющему участнику. |
 | `outputs/` | Артефакты конкретной сдачи: исторические пакеты С01–С02 и локальные материалы КТ1 M-K11. |
 

@@ -1,0 +1,150 @@
+{{- $namespace := .Values.Infra.namespaces.radianceCluster.name -}}
+{{- $action := .Values.Cluster.trinityApp.action.configs | default dict -}}
+{{- $backup := .Values.Cluster.trinityApp.configs.common.maintenance.backup | default dict -}}
+{{- $full := $backup.full | default dict -}}
+{{- $jobSalt := randAlphaNum 12 | lower -}}
+{{- $jobName := printf "radiance-backup-create-%s" $jobSalt | trunc 63 | trimSuffix "-" -}}
+{{- $image := .Values.Cluster.trinityApp.configs.common.images.radianceBackupRestore | default dict -}}
+{{- $tlsEnabled := dig "settings" "tlsEnabled" "value" false .Values.Cluster.trinityApp.configs -}}
+{{- $serviceScheme := "http" -}}
+{{- if $tlsEnabled }}{{- $serviceScheme = "https" -}}{{- end }}
+{{- $backupID := $action.id | default (uuidv4) -}}
+{{- $backupLabel := $action.label | default ($action.name | default (now | date "D2006-01-02_T15-04-05")) -}}
+{{- $backupMethod := $action.method | default "full" -}}
+{{- $s3SecretName := "" -}}
+{{- range $secret := (lookup "v1" "Secret" $namespace "").items -}}
+  {{- if and (not $s3SecretName) $secret.data (hasKey $secret.data "group") (eq ($secret.data.group | b64dec) "s3-backup") -}}
+    {{- $s3SecretName = $secret.metadata.name -}}
+  {{- end -}}
+{{- end -}}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $jobName | quote }}
+  namespace: {{ $namespace | quote }}
+  labels:
+    app: radiance-backup-create
+    backupLaunchType: manual
+    {{- if and .Values.labelKey .Values.labelValue }}
+    {{ .Values.labelKey }}: {{ .Values.labelValue | quote }}
+    {{- end }}
+  annotations:
+    backupID: {{ $backupID | quote }}
+    backupLabel: {{ $backupLabel | quote }}
+    backupType: {{ $backupMethod | quote }}
+    backupMethod: {{ $backupMethod | quote }}
+    backupLaunchType: manual
+    backupStatus: creating
+    backupResult: running
+    startTime: {{ now | date "2006-01-02T15:04:05Z" | quote }}
+    testOnly: "true"
+    creationTimeout: {{ $full.creation_timeout | default 17900 | quote }}
+    keepCount: {{ $full.keepCount | default 1 | quote }}
+spec:
+  backoffLimit: 0
+  completions: 1
+  parallelism: 1
+  activeDeadlineSeconds: {{ $full.creation_timeout | default 17900 }}
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app: radiance-backup-create
+        backupLaunchType: manual
+        {{- if and .Values.labelKey .Values.labelValue }}
+        {{ .Values.labelKey }}: {{ .Values.labelValue | quote }}
+        {{- end }}
+        {{- if and .Values.component .Values.component.label }}
+        {{ .Values.component.label.key }}: {{ .Values.component.label.value | quote }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ .Values.serviceAccountName | default "radiance-backup" | quote }}
+      restartPolicy: Never
+      {{- if .Values.Infra.isStandalone }}
+      nodeSelector:
+        data.vkcs.cloud/schedule: "true"
+      tolerations:
+        - key: data.vkcs.cloud/nodegroup
+          operator: Equal
+          value: standalone
+          effect: NoSchedule
+      {{- else if and .Values.Infra.nodeGroups .Values.Infra.nodeGroups.radiance .Values.Infra.nodeGroups.radiance.label }}
+      nodeSelector:
+        {{ .Values.Infra.nodeGroups.radiance.label.key }}: {{ .Values.Infra.nodeGroups.radiance.label.value | quote }}
+      tolerations:
+        - key: {{ .Values.Infra.nodeGroups.radiance.label.key | quote }}
+          operator: Equal
+          value: {{ .Values.Infra.nodeGroups.radiance.label.value | quote }}
+          effect: NoSchedule
+      {{- end }}
+      containers:
+        - name: radiance-backup
+          {{- $repository := $image.repository | default "" }}
+          {{- $repoHost := index (splitList "/" $repository) 0 }}
+          {{- if $image.digest }}
+            {{- if or (contains "." $repoHost) (contains ":" $repoHost) (eq $repoHost "localhost") }}
+          image: {{ printf "%s@%s" $repository $image.digest | quote }}
+            {{- else }}
+          image: {{ printf "%s/%s@%s" .Values.Infra.registry $repository $image.digest | quote }}
+            {{- end }}
+          {{- else if or (contains "." $repoHost) (contains ":" $repoHost) (eq $repoHost "localhost") }}
+          image: {{ printf "%s:%s" $repository $image.tag | quote }}
+          {{- else }}
+          image: {{ printf "%s/%s:%s" .Values.Infra.registry $repository $image.tag | quote }}
+          {{- end }}
+          imagePullPolicy: {{ $image.pullPolicy | default "IfNotPresent" }}
+          resources:
+            requests:
+              cpu: {{ .Values.Cluster.jobResources.requests.cpu | default "100m" | quote }}
+              memory: {{ .Values.Cluster.jobResources.requests.memory | default "128Mi" | quote }}
+            limits:
+              cpu: {{ .Values.Cluster.jobResources.limits.cpu | default "200m" | quote }}
+              memory: {{ .Values.Cluster.jobResources.limits.memory | default "256Mi" | quote }}
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: JOB_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['batch.kubernetes.io/job-name']
+            - name: RADIANCE_URL
+              value: {{ printf "%s://radiance-service:8080/state" $serviceScheme | quote }}
+            - name: BACKUP_ID
+              value: {{ $backupID | quote }}
+            - name: BACKUP_LABEL
+              value: {{ $backupLabel | quote }}
+            - name: BACKUP_METHOD
+              value: {{ $backupMethod | quote }}
+            - name: BACKUP_LAUNCH_TYPE
+              value: manual
+            - name: BACKUP_LABEL_PREFIX
+              value: ""
+            - name: S3_BUCKET
+              value: {{ $backup.s3_bucket_name | default "radiance-backup" | quote }}
+            - name: S3_FOLDER
+              value: {{ $backup.s3_bucket_folder | default "" | quote }}
+            - name: S3_REGION
+              value: {{ $backup.s3_region | default "ru-1" | quote }}
+            - name: S3_ENDPOINT_URL
+              value: {{ .Values.Infra.s3endpointUrl | quote }}
+            - name: KEEP_COUNT
+              value: {{ $full.keepCount | default 1 | quote }}
+            - name: CREATION_TIMEOUT
+              value: {{ $full.creation_timeout | default 17900 | quote }}
+            {{- if $s3SecretName }}
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $s3SecretName | quote }}
+                  key: aws_s3_key
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $s3SecretName | quote }}
+                  key: aws_s3_key_secret
+            {{- end }}
+          args:
+            - backup

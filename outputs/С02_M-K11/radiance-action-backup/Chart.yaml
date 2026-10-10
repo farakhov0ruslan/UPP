@@ -1,0 +1,8 @@
+apiVersion: v2
+appVersion: v0.0.1
+description: Manual full product backup action for the Radiance test project
+maintainers:
+- name: VK Cloud
+name: radiance-action-backup
+type: application
+version: v0.0.1

@@ -1,0 +1,16 @@
+#apiVersion: batch/v1
+#kind: Job
+#status:
+#  succeeded: 1
+
+{{- if .Values.Status }}
+  {{- if .Values.Status.succeeded }}
+dpState: "ready"
+  {{- else if .Values.Status.failed }}
+dpState: "error"
+  {{- else }}
+dpState: "installing"
+  {{- end }}
+{{- else }}
+dpState: "installing"
+{{- end }}
